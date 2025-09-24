@@ -1,0 +1,26 @@
+import { auth } from "@/lib/auth";
+import { createMiddleware } from "@tanstack/react-start";
+import { getWebRequest, setResponseStatus } from "@tanstack/react-start/server";
+
+/**
+ * Middleware to force authentication on a server function, and add the user to the context.
+ */
+export const authMiddleware = createMiddleware({ type: "function" }).server(
+  async ({ next }) => {
+    const session = await auth.api.getSession({
+      headers: getWebRequest().headers,
+      query: {
+        // ensure session is fresh
+        // https://www.better-auth.com/docs/concepts/session-management#session-caching
+        disableCookieCache: true,
+      },
+    });
+
+    if (!session) {
+      setResponseStatus(401, "Unauthorized");
+      throw new Error("Unauthorized");
+    }
+
+    return next({ context: { user: session.user } });
+  },
+);
